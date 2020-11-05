@@ -114,11 +114,26 @@ $( document ).ready(function() {
 		}
 		
 		delNode(curNode);
+
+		// Пересчет следующего номера
+		recalcNodeNumber();
 		drawTable();
 		drawTree();
 
 		$("#dialog").dialog("close");
 	});
+
+	function recalcNodeNumber() {
+		// Ищем максимальный
+		let maxNumber = 0;
+		for(let node of nodes) {
+			if (node.text.name > maxNumber) {
+				maxNumber = node.text.name;
+			}
+		}
+
+		nodeNumber = maxNumber + 1;
+	}
 
 	function delNode(nodeToDel) {
 		// Удаляем текущий
@@ -164,6 +179,16 @@ $( document ).ready(function() {
 		$("#new-child").val("");
 		$("#dialog").dialog("close");
 		nodeNumber++;
+	});
+
+	// Сохранить
+	$("#save-parent-descr").click((event) => {
+		let curNode = nodes.filter(n => n.text.name == editNodeNumber)[0];
+		let newDescr = $("#parent-descr").val(); 
+		curNode.text.title = newDescr;
+		drawTable();
+		drawTree();
+		$("#dialog").dialog("close");
 	});
 
 
@@ -300,7 +325,7 @@ function setClickAction() {
 		editNodeNumber = parseInt(nodeNumber);
 		let curNode = nodes.filter(n=>n.text.name == nodeNumber)[0];
 		$("#parent-name").html(curNode.text.name);
-		$("#parent-descr").html(curNode.text.title);		
+		$("#parent-descr").val(curNode.text.title);		
 		
 		$( "#dialog" ).dialog();
 	});
