@@ -3,7 +3,7 @@
 let nodes = [];
 let mainNodes = [];
 
-let checkNodes =[];
+let checkNodes = [];
 let parentNode = {};
 
 
@@ -13,10 +13,10 @@ let nodeVal = "";
 let editNodeNumber = -1;
 
 
-$( document ).ready(function() {
+$(document).ready(function () {
 	// Создаём главный невидимый узел
 	parentNode = {
-		text: { 
+		text: {
 			name: nodeNumber,
 			title: nodeVal
 		}
@@ -79,7 +79,7 @@ $( document ).ready(function() {
 			parent: parentNode,
 			children: [],
 			level: 0, // Уровень вложенности, начиная от главного
-			text: { 
+			text: {
 				name: nodeNumber,
 				title: nodeVal
 			}
@@ -87,32 +87,31 @@ $( document ).ready(function() {
 		nodes.push(mainNode);
 		mainNodes.push(mainNode);
 		// checkNodes.push(parentNode);
-		
+
 		drawTree();
 		drawTable();
 		nodeNumber++;
-		
+
 		$("#main-param").val("");
 
 		//$("#main-form").hide();
 		//$("#question-form").show();
-		
+
 		//askQuestion();
 	});
 
-	
+
 	$("#del-node").click((event) => {
 		console.log(editNodeNumber);
 		// Удаляем текущий узел и его дочерние
 		// А также родительские псевдоузлы
 		let curNode = nodes.filter(n => n.text.name == editNodeNumber)[0];
-		if(curNode.level == 0)
-		{
+		if (curNode.level == 0) {
 			// Главные не даём удалять
 			$("#dialog").dialog("close");
 			return;
 		}
-		
+
 		delNode(curNode);
 
 		// Пересчет следующего номера
@@ -126,7 +125,7 @@ $( document ).ready(function() {
 	function recalcNodeNumber() {
 		// Ищем максимальный
 		let maxNumber = 0;
-		for(let node of nodes) {
+		for (let node of nodes) {
 			if (node.text.name > maxNumber) {
 				maxNumber = node.text.name;
 			}
@@ -139,7 +138,7 @@ $( document ).ready(function() {
 		// Удаляем текущий
 		nodes = nodes.filter(n => n.text.name !== nodeToDel.text.name);
 
-		for(let node of nodeToDel.children) {
+		for (let node of nodeToDel.children) {
 			// Удаление дочерних
 			delNode(node);
 		}
@@ -148,7 +147,7 @@ $( document ).ready(function() {
 	}
 
 	function delPseudoNode(nodeToDel) {
-		if(nodeToDel.pp.pseudo) {
+		if (nodeToDel.pp.pseudo) {
 			nodes = nodes.filter(n => n != nodeToDel.pp);
 			delPseudoNode(nodeToDel.pp);
 		}
@@ -168,10 +167,10 @@ $( document ).ready(function() {
 				name: nodeNumber,
 				title: $("#new-child").val()
 			}
-		};	
+		};
 
 		curNode.children.push(childNode);
-		nodes.push(childNode);	
+		nodes.push(childNode);
 
 		drawTable();
 		drawTree();
@@ -184,7 +183,7 @@ $( document ).ready(function() {
 	// Сохранить
 	$("#save-parent-descr").click((event) => {
 		let curNode = nodes.filter(n => n.text.name == editNodeNumber)[0];
-		let newDescr = $("#parent-descr").val(); 
+		let newDescr = $("#parent-descr").val();
 		curNode.text.title = newDescr;
 		drawTable();
 		drawTree();
@@ -193,10 +192,10 @@ $( document ).ready(function() {
 
 
 
-//======================== Старое
+	//======================== Старое
 	$("#question-form").submit((event) => {
 		event.preventDefault();
-		
+
 		nodeVal = $("#question-param").val();
 
 		let childNode = {
@@ -207,10 +206,10 @@ $( document ).ready(function() {
 				title: nodeVal
 			}
 		};
-	   
+
 		nodes.push(childNode);
 		checkNodes.push(childNode);
-		
+
 		// Отрисовка и переход к следующему вопросу
 		drawTree();
 		drawTable();
@@ -218,9 +217,9 @@ $( document ).ready(function() {
 	});
 
 	// Переходим к следующему вопросу
-	$("#cancel").click(()=>{
+	$("#cancel").click(() => {
 		// Если есть ещё узлы, то переходим к следующему
-		if(checkNodes.length > 0){
+		if (checkNodes.length > 0) {
 			parentNode = checkNodes.shift();
 			askQuestion();
 		} else {
@@ -241,13 +240,23 @@ function drawTable() {
 	// Перерисовка таблицы
 	// Очистка
 	$(".char-body").empty();
-	for(let node of nodes) {
-		if(node.text.name === -1){
+	for (let node of nodes) {
+		if (node.text.name === -1) {
 			continue;
 		}
 		// Тут рисуем
-		$('.char-body').append(`<tr><td>${node.text.name}</td><td>${node.text.title}</td></tr>`);
-	}            
+		$('.char-body').append(`<tr>
+			<td>${node.text.name}</td>
+			<td>${node.text.title}</td>
+			<td></td>
+			<td></td>
+			<td></td>
+			<td></td>
+			<td></td>
+			<td></td>
+			<td></td>
+		</tr>`);
+	}
 }
 function drawTree() {
 	let config = {
@@ -258,25 +267,25 @@ function drawTree() {
 			type: "curve" // straight
 		}
 	};
-	
+
 	// let renderNodes = [];
 	// Надо рассчитать положение листьев, чтобы они были все в самом низу
 	let maxLevel = 0;
-	for(let node of nodes) {
+	for (let node of nodes) {
 		if (node.level > maxLevel) {
 			maxLevel = node.level;
 		}
 	}
 
 	// Добавляем псевдоузлы для листьев, если не добрали до низа
-	for(let node of nodes) {
-		if(node.text.name != -1 && node.level > 0 && node.children.length == 0) {
+	for (let node of nodes) {
+		if (node.text.name != -1 && node.level > 0 && node.children.length == 0) {
 			let parentNode = node.pp;
 			// Убираем из дочернего текущий узел
-			parentNode.children = parentNode.children.filter(c=>c!=node);
+			parentNode.children = parentNode.children.filter(c => c != node);
 
-			let neededNodes = maxLevel-node.level;
-			for(let i=0; i<neededNodes; i++) {
+			let neededNodes = maxLevel - node.level;
+			for (let i = 0; i < neededNodes; i++) {
 				let pseudoNode = {
 					pp: parentNode,
 					parent: parentNode,
@@ -285,7 +294,7 @@ function drawTree() {
 					text: {
 						name: -1
 					}
-				}				
+				}
 				parentNode.children.push(pseudoNode);
 				nodes.push(pseudoNode);
 
@@ -300,33 +309,33 @@ function drawTree() {
 	}
 
 
-	for(let node of nodes) {
-		
+	for (let node of nodes) {
+
 		// let rNode = Object.assign({}, node);
-		if(node.pp) {
+		if (node.pp) {
 			//rNode.parent = node.parent;
 			node.parent = node.pp;
 		}
 		// renderNodes.push(rNode );
 	}
-	
+
 	let simple_chart_config = [
 		config, ...nodes
 	];
 
-	let chart = new Treant( simple_chart_config, setClickAction, $ );                        
+	let chart = new Treant(simple_chart_config, setClickAction, $);
 }
 
 // Колбек для добавления дочерних
 function setClickAction() {
-	$(".node-name").click(function(event) {
+	$(".node-name").click(function (event) {
 		// Номер узла
-		let nodeNumber =$(this).text();
+		let nodeNumber = $(this).text();
 		editNodeNumber = parseInt(nodeNumber);
-		let curNode = nodes.filter(n=>n.text.name == nodeNumber)[0];
+		let curNode = nodes.filter(n => n.text.name == nodeNumber)[0];
 		$("#parent-name").html(curNode.text.name);
-		$("#parent-descr").val(curNode.text.title);		
-		
-		$( "#dialog" ).dialog();
+		$("#parent-descr").val(curNode.text.title);
+
+		$("#dialog").dialog();
 	});
 }
