@@ -32,7 +32,7 @@
       :collapse-enabled="false"
     >
       <template v-slot:node="{ node, collapsed }">
-        <span
+        <span 
           @click="showEdit(node)"
           :title="node.title"
           v-if="node.value"
@@ -154,7 +154,10 @@ export default {
   methods: {
     forceRerender() {
       this.componentKey += 1;
-      this.allNodes = this.getChildNodesWithParent(this.mainTree).sort(
+      const allNodes = this.getChildNodesWithParent(this.mainTree);
+
+      // Копируем массив
+      this.allNodes = [...allNodes].sort(
         (a, b) => a.value - b.value
       );
     },
@@ -175,7 +178,8 @@ export default {
     delCurNode() {
       let node = this.findNodeByVal(this.mainTree, this.curNode.value);
       if (node.parent) {
-        node.parent.children = node.parent.children.filter((c) => c != node);
+        node.parent.children = node.parent.children.filter((c) => c !== node);
+        node.parent = null;
         this.addFakeNodes(this.mainTree);
         this.recalcValues(this.mainTree);
         this.forceRerender();
@@ -234,18 +238,20 @@ export default {
         if(newNodesCnt === 0) { continue; }
 
         let parent = leaf.parent;
-        parent.children = parent.children.filter(c => c !== leaf);
+        let candidateNodeIndex = parent.children.indexOf(leaf);
+
+        // parent.children = parent.children.filter(c => c !== leaf);
 
 
         for (let i = 0; i < newNodesCnt; i++) {
-          const fakeNode = { value:null, parent:leaf.parent, children: [] };
-          fakeNode.parent = parent;
-          parent.children.push(fakeNode);
+          const fakeNode = { value: null, parent: parent, children: [] };
+          parent.children[candidateNodeIndex] = fakeNode;
           parent = fakeNode;
+          candidateNodeIndex = 0
         }
 
         leaf.parent = parent;
-        parent.children.push(leaf);
+        parent.children[candidateNodeIndex] = leaf;
       }
     },
 
@@ -253,15 +259,26 @@ export default {
       if (!node.value) {
         // Это фейковый узел. Убираем
         const parent = node.parent;
-        parent.children = parent.children.filter((c) => c != node);
-        // Переставляем дочерние ноды в родительский
-        parent.children = parent.children.concat(node.children);
-        for (const childOfFake of node.children) {
-          childOfFake.parent = parent;
+        // Находим позицию убираемого узла у родителя
+        const fakeIndex = parent.children.indexOf(node);
+
+        // parent.children = parent.children.filter((c) => c != node);
+        // // Переставляем дочерний нод в родительский через фейковый
+        // parent.children = parent.children.concat(node.children);
+        // for (const childOfFake of node.children) {
+        //   childOfFake.parent = parent;
+        // }
+        // ! У фейкового может быть только один дочерний
+        if(node.children.length > 0) {
+        parent.children[fakeIndex] = node.children[0];
+        node.children[0].parent = parent;
+        } else {
+          // Удалили дочерний. Можно убирать фейковый совсем
+          parent.children = parent.children.filter(c => c !== node);
         }
       }
 
-      if(!node.children) { return; }
+      if(!node.children || node.children.length === 0) { return; }
 
       for (const childNode of node.children) {
         this.removeFakeNodes(childNode);
@@ -272,7 +289,7 @@ export default {
     getLeafs(node, level = 0) {
       let leafs = [];
 
-      if (!node.children) {
+      if (!node.children || node.children.length === 0) {
         node.level = level;
         // Это лист
         leafs.push(node);
@@ -292,7 +309,7 @@ export default {
     // Глубина дерева
     getMaxTreeLevel(node, level = 0) {
       let maxLevel = level;
-      if (node.children) {
+      if (node.children && node.children.length > 0) {
         const nextLevel = maxLevel + 1;
 
         for (const childNode of node.children) {          
@@ -315,7 +332,7 @@ export default {
       }
 
       // Ищем в дочерних
-      if (node.children) {
+      if (node.children && node.children.length > 0) {
         for (const childNode of node.children) {
           const childNodes = this.getNodesByLevel(childNode, level, curLevel);
           nodes = nodes.concat(childNodes);
@@ -345,7 +362,7 @@ export default {
         nodes.push(node);
       }
 
-      if (node.children) {
+      if (node.children && node.children.length > 0) {
         for (const childNode of node.children) {
           nodes = nodes.concat(this.getChildNodesWithParent(childNode));
         }
@@ -357,6 +374,9 @@ export default {
 </script>
 
 <style>
+.tree-container {
+  overflow: scroll;
+}
 .tree-node {
   display: inline-block;
   width: 28px;
