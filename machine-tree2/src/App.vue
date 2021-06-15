@@ -74,7 +74,7 @@
           <td>{{ node.title }}</td>
           <td></td>
           <td></td>
-          <td></td>
+          <td><input type="text" v-model="node.apriorTime" /></td>
           <td></td>
           <td></td>
           <td></td>
@@ -82,6 +82,14 @@
         </tr>
       </tbody>
     </table>
+
+    <input type="button" value="Построить граф поиска неисправностей" 
+      @click="createSearchDefectGraph" />
+    <br />
+
+    <canvas id="graph" width="800" height="2000">  
+    </canvas>
+    
 
     <!-- https://euvl.github.io/vue-js-modal/Intro.html#static-modals -->
     <modal name="edit-dialog">
@@ -116,7 +124,12 @@
       </table>
       <br />
       <button @click="closeEdit">Закрыть</button>
-    </modal>
+    </modal>   
+
+    <footer>
+      Автор: <i>Дмитрий Косинов - squalsoft@gmail.com</i>,
+      соавтор: <i>Александр Солдатенко - soldatenkosasha@yandex.ru</i>
+    </footer>
   </div>
 </template>
 
@@ -142,6 +155,33 @@ export default {
           { value: null, children: [{ value: "3" }] },
         ],
       },
+      // https://mermaid-js.github.io/mermaid/#/flowchart
+      defectsGraph:[
+        {
+          id: "1",
+          text: "1",
+          link: "-.->",
+          next: ["2", "3"],
+          edgeType: "circle",
+        },
+        { id: "2", text: "B", edgeType: "circle" },
+        { id: "3", text: "C", next: ["4", "6"] },
+        { id: "4", text: "D", link: "-- This is the text ---", next: ["5"] },
+        { id: "5", text: "E" },
+        { id: "6", text: "F" }
+      ],
+
+      subGraphQ:[
+        {
+          id: "11",
+          text: "11",
+          link: "-.->",
+          next: ["22"],
+          edgeType: "circle",
+        },
+        { id: "22", text: "B", edgeType: "circle" }
+      ],
+      
       treeConfig: {
         nodeWidth: 50,
         nodeHeight: 30,
@@ -151,7 +191,143 @@ export default {
       allNodes: [],
     };
   },
+  mounted () {
+    // mermaid.initialize({theme: "default", startOnLoad: false, securityLevel: "loose"});
+  },
+
   methods: {
+    drawCircle(context, point, label, withCircle = true) {
+      let title = label;
+      const x = point.x;
+      const y = point.y;
+      const radius = 25;
+
+      context.beginPath();
+      if(withCircle){
+        context.arc(x, y, radius, 0, 2 * Math.PI, false);
+        context.fillStyle = 'white';
+        context.fill();
+        context.lineWidth = 2;
+        context.strokeStyle = '#003300';
+        context.stroke();
+      } else {
+        title = 'отказ ' + title;
+      }
+      context.font = '12pt Calibri';
+      context.fillStyle = 'black';
+      context.textAlign = 'center';
+      context.fillText(title, x, y+5);
+    },
+
+    drawArrow(context, fromOrig, toOrig, dashed = false) {
+      const from = {x: fromOrig.x, y: fromOrig.y};
+      const to = {x: toOrig.x, y: toOrig.y};
+      const radius = 25;
+      // var radians = Math.PI / 180;
+      var headlen = 10;
+      var angle = Math.atan(Math.abs(from.y - to.y) / Math.abs(from.x - to.x));
+      var rise = radius * Math.sin(angle);
+      var run = radius * Math.cos(angle);
+      context.beginPath();      
+      if (from.x < to.x) {
+          from.x += run;
+          to.x -= run;
+      } else {
+          from.x -= run;
+          to.x += run;
+      }
+      if (from.y < to.y) {
+          from.y += rise;
+          to.y -= rise;
+      } else {
+          from.y -= rise;
+          to.y += rise;
+      }
+      if(dashed) {
+        context.setLineDash([5, 3]);    
+      }
+      context.moveTo(from.x, from.y);
+      context.lineTo(to.x, to.y);
+      context.stroke();                  
+
+      // Стрелка
+      context.beginPath();  
+      context.setLineDash([]);
+      context.lineTo(to.x, to.y);     
+      
+      context.lineTo(to.x - headlen * Math.cos(angle - Math.PI / 6), to.y - headlen * Math.sin(angle - Math.PI / 6));
+      context.moveTo(to.x, to.y);      
+      context.lineTo(to.x - headlen * Math.cos(angle + Math.PI / 6), to.y - headlen * Math.sin(angle + Math.PI / 6));
+      context.stroke();
+    },
+
+    createSearchDefectGraph() {
+      if(!this.mainTree.value) return;
+
+      var graph = document.getElementById("graph");
+      var ctx = graph.getContext('2d');
+      ctx.clearRect(0, 0, graph.width, graph.height);
+
+      // Расстояние между кружками      
+      // this.drawCircle(ctx, 30, 30, '1');
+      // this.drawCircle(ctx, 30 + step, 30, '2');
+      // this.drawArrow(ctx, {x: 30, y: 30}, {x: 30 + step, y: 30});
+      
+      // Рисуем начальную точку
+      let posX = 30;
+      let posY = 30;
+      let prevCirclePos = {x: posX, y: posY};
+      this.drawCircle(ctx, prevCirclePos, this.mainTree.value);
+      
+      this.removeFakeNodes(this.mainTree); // Временно убираем фейковые узлы
+
+      // Отрисовка дочерних узлов
+      this.drawChildren(this.mainTree, posX, posY, ctx);      
+
+      this.addFakeNodes(this.mainTree); // Возвращаем фейковые узлы
+    },
+
+    drawChildren(node, posX, posY, ctx) {
+      let step = 80;
+      let prevCirclePos = {x: posX, y: posY};
+
+      // Дальше получаем дочерние узлы в порядке возрастания априорного времени
+      let childNodes = [...node.children];
+      const sortedNodes = this.sortNodesByTime(childNodes);
+      // Дочерние узлы двигаем вправо
+      posX += step;
+      let dashed = true;
+      // Дочерние узлы идут вниз
+      for (const childNode of sortedNodes) {        
+        const curCirclePos = {x: posX, y: posY};
+
+        const childNodeIndex = sortedNodes.indexOf(childNode);
+        // Если нет дочерних и это последний в списке узел, то без кружка
+        const noCircle = childNodeIndex === sortedNodes.length - 1 && 
+          (!childNode.children || childNode.children.length === 0);          
+        
+        this.drawCircle(ctx, curCirclePos, childNode.value, !noCircle);
+
+        if(childNode.children && childNode.children.length > 0) {
+          // Есть дочерние
+          posY = this.drawChildren(childNode, posX, posY, ctx);
+        }
+
+        // Соединение с предыдущим узлом
+        this.drawArrow(ctx, prevCirclePos, curCirclePos, dashed);
+        prevCirclePos = curCirclePos;
+        dashed = false;
+        posY += step;
+      }
+
+      return posY - step;
+    },
+
+    // Сортировка по априорному времени
+    sortNodesByTime(nodes) {
+      return nodes.sort((a,b) => (a.apriorTime || 0) - (b.apriorTime || 0));
+    },
+
     forceRerender() {
       this.componentKey += 1;
       const allNodes = this.getChildNodesWithParent(this.mainTree);
@@ -374,6 +550,10 @@ export default {
 </script>
 
 <style>
+#graph {
+  border: gainsboro solid 1px;
+  overflow: scroll;
+}
 .tree-container {
   overflow: scroll;
 }
